@@ -2,6 +2,7 @@
 namespace Nevay\OTelSDK\Configuration\Internal;
 
 use Nevay\OTelSDK\Configuration\Environment\EnvReader;
+use Symfony\Component\Config\Definition\Builder\ArrayNodeDefinition;
 use Symfony\Component\Config\Definition\Builder\BooleanNodeDefinition;
 use Symfony\Component\Config\Definition\Builder\FloatNodeDefinition;
 use Symfony\Component\Config\Definition\Builder\IntegerNodeDefinition;
@@ -28,7 +29,13 @@ final class EnvSubstitutionNormalization {
         private readonly EnvReader $envReader,
     ) {}
 
-    public function apply(NodeDefinition $node): void {
+    public function apply(ArrayNodeDefinition $root): void {
+        foreach ($root->getChildNodeDefinitions() as $childNode) {
+            $this->doApply($childNode);
+        }
+    }
+
+    private function doApply(NodeDefinition $node): void {
         if ($node instanceof ScalarNodeDefinition) {
             $filter = match (true) {
                 $node instanceof BooleanNodeDefinition => FILTER_VALIDATE_BOOLEAN,
@@ -44,7 +51,7 @@ final class EnvSubstitutionNormalization {
 
         if ($node instanceof ParentNodeDefinitionInterface) {
             foreach ($node->getChildNodeDefinitions() as $childNode) {
-                $this->apply($childNode);
+                $this->doApply($childNode);
             }
         }
     }

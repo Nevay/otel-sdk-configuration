@@ -1,6 +1,7 @@
 <?php declare(strict_types=1);
 namespace Nevay\OTelSDK\Configuration\Internal;
 
+use Symfony\Component\Config\Definition\Builder\ArrayNodeDefinition;
 use Symfony\Component\Config\Definition\Builder\NodeDefinition;
 use Symfony\Component\Config\Definition\Builder\ParentNodeDefinitionInterface;
 
@@ -9,12 +10,18 @@ use Symfony\Component\Config\Definition\Builder\ParentNodeDefinitionInterface;
  */
 final class TreatNullAsUnsetNormalization {
 
-    public function apply(NodeDefinition $node): void {
+    public function apply(ArrayNodeDefinition $root): void {
+        foreach ($root->getChildNodeDefinitions() as $childNode) {
+            $this->doApply($childNode);
+        }
+    }
+
+    private function doApply(NodeDefinition $node): void {
         $node->beforeNormalization()->ifNull()->thenUnset()->end();
 
         if ($node instanceof ParentNodeDefinitionInterface) {
             foreach ($node->getChildNodeDefinitions() as $childNode) {
-                $this->apply($childNode);
+                $this->doApply($childNode);
             }
         }
     }
