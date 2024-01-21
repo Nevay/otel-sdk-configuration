@@ -8,7 +8,7 @@ use Symfony\Component\Config\Definition\Builder\ParentNodeDefinitionInterface;
 /**
  * @internal
  */
-final class TreatNullAsUnsetNormalization {
+final class TreatNullAsUnsetNormalization implements Normalization {
 
     public function apply(ArrayNodeDefinition $root): void {
         foreach ($root->getChildNodeDefinitions() as $childNode) {

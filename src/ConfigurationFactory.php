@@ -114,18 +114,23 @@ final class ConfigurationFactory {
     }
 
     private function compileFactory(): CompiledConfigurationFactory {
-        $registry = new ComponentProviderRegistry();
+        $envReader = new TrackingEnvReader($this->envReader);
+        $normalizations = [
+            // Parse MUST perform environment variable substitution.
+            new EnvSubstitutionNormalization($envReader),
+            // Parse MUST interpret null as equivalent to unset.
+            new TreatNullAsUnsetNormalization(),
+        ];
+
+        $registry = new ComponentProviderRegistry($normalizations);
         foreach ($this->componentProviders as $provider) {
             $registry->register($provider);
         }
 
         $root = $this->rootComponent->getConfig($registry);
-
-        $envReader = new TrackingEnvReader($this->envReader);
-        // Parse MUST perform environment variable substitution.
-        (new EnvSubstitutionNormalization($envReader))->apply($root);
-        // Parse MUST interpret null as equivalent to unset.
-        (new TreatNullAsUnsetNormalization())->apply($root);
+        foreach ($normalizations as $normalization) {
+            $normalization->apply($root);
+        }
 
         $node = $root->getNode(forceRootNode: true);
 
