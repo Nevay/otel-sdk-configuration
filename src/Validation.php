@@ -41,7 +41,7 @@ final class Validation {
                 throw new InvalidArgumentException('must be of type string');
             }
 
-            set_error_handler(static fn(int $errno, string $errstr): never
+            set_error_handler(static fn(int $errno, string $errstr)
                 => throw new InvalidArgumentException('must be a valid regex pattern: ' . self::stripPrefix($errstr, 'preg_match(): '), $errno));
             try {
                 preg_match($value, '');
