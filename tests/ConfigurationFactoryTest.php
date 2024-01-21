@@ -119,6 +119,24 @@ final class ConfigurationFactoryTest extends TestCase {
     }
 
     #[BackupGlobals(true)]
+    public function testEnvSubstitutionNested(): void {
+        $_SERVER['OTEL_TRACE_ID_RATIO'] = '0.7';
+        $parsed = self::factory()->process([[
+            'file_format' => '0.1',
+            'tracer_provider' => [
+                'sampler' => [
+                    'trace_id_ratio_based' => [
+                        'ratio' => '${OTEL_TRACE_ID_RATIO}'
+                    ],
+                ],
+            ],
+        ]]);
+
+        $this->assertInstanceOf(ComponentPlugin::class, $parsed);
+        $this->assertSame(0.7, self::getPropertiesFromPlugin(self::getPropertiesFromPlugin($parsed)['tracer_provider']['sampler'])['ratio']);
+    }
+
+    #[BackupGlobals(true)]
     public function testEnvSubstitutionNonString(): void {
         $_SERVER['OTEL_ATTRIBUTE_VALUE_LENGTH_LIMIT'] = '2048';
         $parsed = self::factory()->process([[

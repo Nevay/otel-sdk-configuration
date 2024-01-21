@@ -5,6 +5,7 @@ use InvalidArgumentException;
 use LogicException;
 use Nevay\OTelSDK\Configuration\ComponentProvider;
 use Nevay\OTelSDK\Configuration\ResourceCollection;
+use Nevay\OTelSDK\Configuration\Validation;
 use ReflectionClass;
 use ReflectionIntersectionType;
 use ReflectionNamedType;
@@ -12,9 +13,9 @@ use ReflectionType;
 use ReflectionUnionType;
 use Symfony\Component\Config\Definition\Builder\ArrayNodeDefinition;
 use Symfony\Component\Config\Definition\Builder\NodeDefinition;
-use Symfony\Component\Config\Definition\Builder\VariableNodeDefinition;
 use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
-use function array_diff_key;
+use Symfony\Component\Config\Definition\NodeInterface;
+use Symfony\Component\Config\Definition\Processor;
 use function array_key_first;
 use function array_keys;
 use function array_map;
@@ -27,20 +28,37 @@ use function sprintf;
  */
 final class ComponentProviderRegistry implements \Nevay\OTelSDK\Configuration\ComponentProviderRegistry, ResourceTrackable {
 
+    /** @var iterable<Normalization> */
+    private readonly iterable $normalizations;
+
     /** @var array<string, array<string, ComponentProvider>> */
     private array $providers = [];
-    /** @var array<string, array<string, true>> */
-    private array $recursionProtection = [];
+    /** @var array<string, array<string, NodeInterface>> */
+    private array $nodes = [];
     private ?ResourceCollection $resources = null;
 
+    /**
+     * @param iterable<Normalization> $normalizations
+     */
+    public function __construct(iterable $normalizations) {
+        $this->normalizations = $normalizations;
+    }
+
     public function register(ComponentProvider $provider): void {
-        $name = self::loadName($provider);
+        $config = $provider->getConfig($this);
+
+        $name = self::loadName($config);
         $type = self::loadType($provider);
         if (isset($this->providers[$type][$name])) {
             throw new LogicException(sprintf('Duplicate component provider registered for "%s" "%s"', $type, $name));
         }
 
+        foreach ($this->normalizations as $normalization) {
+            $normalization->apply($config);
+        }
+
         $this->providers[$type][$name] = $provider;
+        $this->nodes[$type][$name] = $config->getNode(forceRootNode: true);
     }
 
     public function trackResources(?ResourceCollection $resources): void {
@@ -48,13 +66,6 @@ final class ComponentProviderRegistry implements \Nevay\OTelSDK\Configuration\Co
     }
 
     public function component(string $name, string $type): NodeDefinition {
-        if (!$this->getProviders($type)) {
-            return (new VariableNodeDefinition($name))
-                ->info(sprintf('Component "%s"', $type))
-                ->defaultNull()
-                ->validate()->always()->thenInvalid(sprintf('Component "%s" cannot be configured, it does not have any associated provider', $type))->end();
-        }
-
         $node = new ArrayNodeDefaultNullDefinition($name);
         $this->applyToArrayNode($node, $type);
 
@@ -71,24 +82,30 @@ final class ComponentProviderRegistry implements \Nevay\OTelSDK\Configuration\Co
     public function componentNames(string $name, string $type): ArrayNodeDefinition {
         $node = new ArrayNodeDefinition($name);
 
-        $providers = $this->getProviders($type);
-        foreach ($providers as $providerName => $provider) {
+        $providers = $this->providers[$type];
+        foreach ($this->nodes[$type] as $providerName => $configNode) {
             try {
-                $provider->getConfig(new ComponentProviderRegistry())->getNode(true)->finalize([]);
+                $configNode->finalize([]);
             } catch (InvalidConfigurationException) {
                 unset($providers[$providerName]);
             }
         }
         if ($providers) {
-            $node->enumPrototype()->values(array_keys($providers))->end();
-
+            $node->scalarPrototype()->validate()->always(Validation::ensureString())->end()->end();
             $node->validate()->always(function(array $value) use ($type): array {
                 $plugins = [];
                 foreach ($value as $name) {
+                    if (!isset($this->providers[$type][$name])) {
+                        throw new InvalidArgumentException(sprintf('Unknown provider "%s" for "%s"',
+                            $name, $type));
+                    }
                     $provider = $this->providers[$type][$name];
                     $this->resources?->addClassResource($provider);
 
-                    $plugins[] = new ComponentPlugin([], $provider);
+                    $plugins[] = new ComponentPlugin(
+                        (new Processor())->process($this->nodes[$type][$name], []),
+                        $this->providers[$type][$name],
+                    );
                 }
 
                 return $plugins;
@@ -101,15 +118,7 @@ final class ComponentProviderRegistry implements \Nevay\OTelSDK\Configuration\Co
     private function applyToArrayNode(ArrayNodeDefinition $node, string $type): void {
         $node->info(sprintf('Component "%s"', $type));
         $node->performNoDeepMerging();
-
-        foreach ($this->getProviders($type) as $name => $provider) {
-            $this->recursionProtection[$type][$name] = true;
-            try {
-                $node->children()->append($provider->getConfig($this));
-            } finally {
-                unset($this->recursionProtection[$type][$name]);
-            }
-        }
+        $node->ignoreExtraKeys(false);
 
         $node->validate()->always(function(array $value) use ($type): ComponentPlugin {
             if (count($value) !== 1) {
@@ -121,28 +130,18 @@ final class ComponentProviderRegistry implements \Nevay\OTelSDK\Configuration\Co
             $provider = $this->providers[$type][$name];
             $this->resources?->addClassResource($provider);
 
-            return new ComponentPlugin($value[$name], $this->providers[$type][$name]);
+            return new ComponentPlugin(
+                (new Processor())->process($this->nodes[$type][$name], $value),
+                $this->providers[$type][$name],
+            );
         });
     }
 
-    /**
-     * Returns all registered providers for a specific component type.
-     *
-     * @param string $type the component type to load providers for
-     * @return array<string, ComponentProvider> component providers indexed by their name
-     */
-    private function getProviders(string $type): array {
-        return array_diff_key(
-            $this->providers[$type] ?? [],
-            $this->recursionProtection[$type] ?? [],
-        );
-    }
-
-    private static function loadName(ComponentProvider $provider): string {
+    private static function loadName(NodeDefinition $node): string {
         static $accessor;
         $accessor ??= (static fn(NodeDefinition $node): ?string => $node->name)->bindTo(null, NodeDefinition::class);
 
-        return $accessor($provider->getConfig(new ComponentProviderRegistry()));
+        return $accessor($node);
     }
 
     private static function loadType(ComponentProvider $provider): string {

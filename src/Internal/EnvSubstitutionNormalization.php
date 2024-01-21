@@ -25,7 +25,7 @@ use const NAN;
 /**
  * @internal
  */
-final class EnvSubstitutionNormalization {
+final class EnvSubstitutionNormalization implements Normalization {
 
     public function __construct(
         private readonly EnvReader $envReader,
