@@ -1,0 +1,42 @@
+{
+    "name": "tbachert/otel-sdk-configuration",
+    "description": "OpenTelemetry SDK configuration",
+    "keywords": ["opentelemetry", "otel", "sdk", "configuration"],
+    "license": "Apache-2.0",
+    "require": {
+        "php": "^8.1",
+        "open-telemetry/api": "^1.0",
+        "open-telemetry/context": "^1.0",
+        "symfony/config": "^5.4 || ^6.4 || ^7.0"
+    },
+    "require-dev": {
+        "ext-yaml": "^2.2.2",
+        "phpunit/phpunit": "^10.5",
+        "symfony/var-exporter": "^5.4 || ^6.4 || ^7.0",
+        "symfony/yaml": "^5.4 || ^6.4 || ^7.0"
+    },
+    "suggest": {
+        "ext-yaml": "Allows loading config from yaml files",
+        "symfony/yaml": "Allows loading config from yaml files",
+        "tbachert/spi": "Allows defining and loading component providers from composer.json extra.spi"
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "autoload": {
+        "psr-4": {
+            "Nevay\\OTelSDK\\Configuration\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Nevay\\OTelSDK\\Configuration\\": "tests/",
+            "ExampleSDK\\ComponentProvider\\": "examples/"
+        }
+    },
+    "extra": {
+        "branch-alias": {
+            "dev-main": "0.1.x-dev"
+        }
+    }
+}
