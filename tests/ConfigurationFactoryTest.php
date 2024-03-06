@@ -1,6 +1,7 @@
 <?php declare(strict_types=1);
 namespace Nevay\OTelSDK\Configuration;
 
+use BadMethodCallException;
 use ExampleSDK\ComponentProvider;
 use Nevay\OTelSDK\Configuration\Environment\ArrayEnvSource;
 use Nevay\OTelSDK\Configuration\Environment\EnvSourceReader;
@@ -8,20 +9,83 @@ use Nevay\OTelSDK\Configuration\Environment\PhpIniEnvSource;
 use PHPUnit\Framework\Attributes\BackupGlobals;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Config\Definition\Builder\ArrayNodeDefinition;
+use Symfony\Component\Yaml\Yaml;
 
 final class ConfigurationFactoryTest extends TestCase {
 
-    public function testEnvSubstitutionNotSetEnvVariable(): void {
-        $parsed = self::factory()->process([[
-            'file_format' => '0.1',
-            'resource' => [
-                'attributes' => [
-                    'service.name' => '${OTEL_SERVICE_NAME}'
-                ],
-            ],
-        ]]);
+    public function testEnvSubstitutionSpecExamples(): void {
+        // see example https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/configuration/file-configuration.md#environment-variable-substitution
+        $factory = new ConfigurationFactory(
+            [],
+            new class implements \Nevay\OTelSDK\Configuration\ComponentProvider {
 
-        $this->assertSame('', self::getPropertiesFromPlugin($parsed)['resource']['attributes']['service.name']);
+                public function createPlugin(array $properties, Context $context): mixed {
+                    throw new BadMethodCallException();
+                }
+
+                public function getConfig(ComponentProviderRegistry $registry): ArrayNodeDefinition {
+                    $node = new ArrayNodeDefinition('env_substitution');
+                    $node
+                        ->children()
+                            ->scalarNode('string_key')->end()
+                            ->scalarNode('other_string_key')->end()
+                            ->scalarNode('another_string_key')->end()
+                            ->scalarNode('yet_another_string_key')->end()
+                            ->booleanNode('bool_key')->end()
+                            ->integerNode('int_key')->end()
+                            ->floatNode('float_key')->end()
+                            ->scalarNode('combo_string_key')->end()
+                            ->variableNode('undefined_key')->end()
+                            ->variableNode('${STRING_VALUE}')->end()
+                        ->end()
+                    ;
+
+                    return $node;
+                }
+            },
+            new EnvSourceReader([
+                new ArrayEnvSource([
+                    'STRING_VALUE' => 'value',
+                    'BOOl_VALUE' => 'true',
+                    'INT_VALUE' => '1',
+                    'FLOAT_VALUE' => '1.1',
+                    'INVALID_MAP_VALUE' => "value\nkey:value",
+                ]),
+            ]),
+        );
+
+        $parsed = $factory->process([
+            Yaml::parse(<<<'YAML'
+                string_key: ${STRING_VALUE}                           # Valid reference to STRING_VALUE
+                other_string_key: "${STRING_VALUE}"                   # Valid reference to STRING_VALUE inside double quotes
+                another_string_key: "${BOOl_VALUE}"                   # Valid reference to BOOl_VALUE inside double quotes
+                yet_another_string_key: ${INVALID_MAP_VALUE}          # Valid reference to INVALID_MAP_VALUE, but YAML structure from INVALID_MAP_VALUE MUST NOT be injected
+                bool_key: ${BOOl_VALUE}                               # Valid reference to BOOl_VALUE
+                int_key: ${INT_VALUE}                                 # Valid reference to INT_VALUE
+                float_key: ${FLOAT_VALUE}                             # Valid reference to FLOAT_VALUE
+                combo_string_key: foo ${STRING_VALUE} ${FLOAT_VALUE}  # Valid reference to STRING_VALUE and FLOAT_VALUE
+                undefined_key: ${UNDEFINED_KEY}                       # Invalid reference, UNDEFINED_KEY is not defined and is replaced with ""
+                ${STRING_VALUE}: value                                # Invalid reference, substitution is not valid in mapping keys and reference is ignored
+                YAML),
+        ]);
+
+        $this->assertSame(
+            Yaml::parse(<<<'YAML'
+                string_key: value                           # Interpreted as type string, tag URI tag:yaml.org,2002:str
+                other_string_key: "value"                   # Interpreted as type string, tag URI tag:yaml.org,2002:str
+                another_string_key: "true"                  # Interpreted as type string, tag URI tag:yaml.org,2002:str
+                yet_another_string_key: "value\nkey:value"  # Interpreted as type string, tag URI tag:yaml.org,2002:str
+                bool_key: true                              # Interpreted as type bool, tag URI tag:yaml.org,2002:bool
+                int_key: 1                                  # Interpreted as type int, tag URI tag:yaml.org,2002:int
+                float_key: 1.1                              # Interpreted as type float, tag URI tag:yaml.org,2002:float
+                combo_string_key: foo value 1.1             # Interpreted as type string, tag URI tag:yaml.org,2002:str
+                # undefined_key removed as null is treated as unset
+                # undefined_key:                            # Interpreted as type null, tag URI tag:yaml.org,2002:null
+                ${STRING_VALUE}: value                      # Interpreted as type string, tag URI tag:yaml.org,2002:str
+                YAML),
+            self::getPropertiesFromPlugin($parsed),
+        );
     }
 
     #[BackupGlobals(true)]

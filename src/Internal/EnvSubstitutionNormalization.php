@@ -68,6 +68,9 @@ final class EnvSubstitutionNormalization {
         if (!$count) {
             return $value;
         }
+        if ($replaced === '') {
+            return null;
+        }
 
         return filter_var($replaced, $filter, FILTER_NULL_ON_FAILURE) ?? $replaced;
     }
