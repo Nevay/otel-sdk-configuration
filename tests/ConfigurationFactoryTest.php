@@ -6,6 +6,7 @@ use ExampleSDK\ComponentProvider;
 use Nevay\OTelSDK\Configuration\Environment\ArrayEnvSource;
 use Nevay\OTelSDK\Configuration\Environment\EnvSourceReader;
 use Nevay\OTelSDK\Configuration\Environment\PhpIniEnvSource;
+use Nevay\OTelSDK\Configuration\Environment\ServerEnvSource;
 use PHPUnit\Framework\Attributes\BackupGlobals;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -186,7 +187,7 @@ final class ConfigurationFactoryTest extends TestCase {
             ],
             new ComponentProvider\OpenTelemetryConfiguration(),
             new EnvSourceReader([
-                new ArrayEnvSource($_SERVER),
+                new ServerEnvSource(),
                 new PhpIniEnvSource(),
             ]),
         );
