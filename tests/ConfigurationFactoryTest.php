@@ -123,12 +123,12 @@ final class ConfigurationFactoryTest extends TestCase {
         $parsed = self::factory()->process([[
             'file_format' => '0.1',
             'attribute_limits' => [
-                'attribute_value_length_limit' => null,
+                'attribute_count_limit' => null,
             ],
         ]]);
 
         $this->assertInstanceOf(ComponentPlugin::class, $parsed);
-        $this->assertSame(4096, self::getPropertiesFromPlugin($parsed)['attribute_limits']['attribute_value_length_limit']);
+        $this->assertSame(128, self::getPropertiesFromPlugin($parsed)['attribute_limits']['attribute_count_limit']);
     }
 
     private function getPropertiesFromPlugin(ComponentPlugin $plugin): array {
