@@ -58,8 +58,8 @@ final class EnvSubstitutionNormalization {
 
     private function replaceEnvVariables(string $value, int $filter = FILTER_DEFAULT): mixed {
         $replaced = preg_replace_callback(
-            '/\$\{(?<ENV_NAME>[a-zA-Z_][a-zA-Z0-9_]*)}/',
-            fn(array $matches): string => $this->envReader->read($matches['ENV_NAME']) ?? '',
+            '/\$\{(?<ENV_NAME>[a-zA-Z_][a-zA-Z0-9_]*)(?::-(?<DEFAULT_VALUE>[^\n]*))?}/',
+            fn(array $matches): string => $this->envReader->read($matches['ENV_NAME']) ?? $matches['DEFAULT_VALUE'] ?? '',
             $value,
             -1,
             $count,

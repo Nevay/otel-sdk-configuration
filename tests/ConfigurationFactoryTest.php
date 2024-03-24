@@ -37,6 +37,7 @@ final class ConfigurationFactoryTest extends TestCase {
                             ->integerNode('int_key')->end()
                             ->floatNode('float_key')->end()
                             ->scalarNode('combo_string_key')->end()
+                            ->scalarNode('string_key_with_default')->end()
                             ->variableNode('undefined_key')->end()
                             ->variableNode('${STRING_VALUE}')->end()
                         ->end()
@@ -66,6 +67,7 @@ final class ConfigurationFactoryTest extends TestCase {
                 int_key: ${INT_VALUE}                                 # Valid reference to INT_VALUE
                 float_key: ${FLOAT_VALUE}                             # Valid reference to FLOAT_VALUE
                 combo_string_key: foo ${STRING_VALUE} ${FLOAT_VALUE}  # Valid reference to STRING_VALUE and FLOAT_VALUE
+                string_key_with_default: ${UNDEFINED_KEY:-fallback}   # UNDEFINED_KEY is not defined but a default value is included
                 undefined_key: ${UNDEFINED_KEY}                       # Invalid reference, UNDEFINED_KEY is not defined and is replaced with ""
                 ${STRING_VALUE}: value                                # Invalid reference, substitution is not valid in mapping keys and reference is ignored
                 YAML),
@@ -81,6 +83,7 @@ final class ConfigurationFactoryTest extends TestCase {
                 int_key: 1                                  # Interpreted as type int, tag URI tag:yaml.org,2002:int
                 float_key: 1.1                              # Interpreted as type float, tag URI tag:yaml.org,2002:float
                 combo_string_key: foo value 1.1             # Interpreted as type string, tag URI tag:yaml.org,2002:str
+                string_key_with_default: fallback           # Interpreted as type string, tag URI tag:yaml.org,2002:str
                 # undefined_key removed as null is treated as unset
                 # undefined_key:                            # Interpreted as type null, tag URI tag:yaml.org,2002:null
                 ${STRING_VALUE}: value                      # Interpreted as type string, tag URI tag:yaml.org,2002:str
