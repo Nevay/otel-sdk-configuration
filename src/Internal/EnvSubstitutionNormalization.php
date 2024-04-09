@@ -14,11 +14,13 @@ use function filter_var;
 use function is_array;
 use function is_string;
 use function preg_replace_callback;
-use const FILTER_DEFAULT;
+use const FILTER_FLAG_ALLOW_HEX;
+use const FILTER_FLAG_ALLOW_OCTAL;
 use const FILTER_NULL_ON_FAILURE;
-use const FILTER_VALIDATE_BOOLEAN;
 use const FILTER_VALIDATE_FLOAT;
 use const FILTER_VALIDATE_INT;
+use const INF;
+use const NAN;
 
 /**
  * @internal
@@ -37,13 +39,15 @@ final class EnvSubstitutionNormalization {
 
     private function doApply(NodeDefinition $node): void {
         if ($node instanceof ScalarNodeDefinition) {
-            $filter = match (true) {
-                $node instanceof BooleanNodeDefinition => FILTER_VALIDATE_BOOLEAN,
-                $node instanceof IntegerNodeDefinition => FILTER_VALIDATE_INT,
-                $node instanceof FloatNodeDefinition => FILTER_VALIDATE_FLOAT,
-                default => FILTER_DEFAULT,
+            $resolveScalars = match (true) {
+                $node instanceof BooleanNodeDefinition,
+                $node instanceof IntegerNodeDefinition,
+                $node instanceof FloatNodeDefinition,
+                    => true,
+                default
+                    => false,
             };
-            $node->beforeNormalization()->ifString()->then(fn(string $v) => $this->replaceEnvVariables($v, $filter))->end();
+            $node->beforeNormalization()->ifString()->then(fn(string $v) => $this->replaceEnvVariables($v, $resolveScalars))->end();
         }
         if ($node instanceof VariableNodeDefinition) {
             $node->beforeNormalization()->always($this->replaceEnvVariablesRecursive(...))->end();
@@ -56,7 +60,7 @@ final class EnvSubstitutionNormalization {
         }
     }
 
-    private function replaceEnvVariables(string $value, int $filter = FILTER_DEFAULT): mixed {
+    private function replaceEnvVariables(string $value, bool $resolveScalars = false): mixed {
         $replaced = preg_replace_callback(
             '/\$\{(?<ENV_NAME>[a-zA-Z_][a-zA-Z0-9_]*)(?::-(?<DEFAULT_VALUE>[^\n]*))?}/',
             fn(array $matches): string => $this->envReader->read($matches['ENV_NAME']) ?? $matches['DEFAULT_VALUE'] ?? '',
@@ -71,8 +75,24 @@ final class EnvSubstitutionNormalization {
         if ($replaced === '') {
             return null;
         }
+        if (!$resolveScalars) {
+            return $replaced;
+        }
 
-        return filter_var($replaced, $filter, FILTER_NULL_ON_FAILURE) ?? $replaced;
+        // https://yaml.org/spec/1.2.2/#103-core-schema
+        return match ($replaced) {
+            'null', 'Null', 'NULL', '~' => null,
+            'true', 'True', 'TRUE' => true,
+            'false', 'False', 'FALSE' => false,
+            '.nan', '.NaN', '.NAN' => NAN,
+            '.inf', '.Inf', '.INF', => INF,
+            '+.inf', '+.Inf', '+.INF' => +INF,
+            '-.inf', '-.Inf', '-.INF' => -INF,
+            default => null
+                ?? filter_var($replaced, FILTER_VALIDATE_INT, FILTER_NULL_ON_FAILURE | FILTER_FLAG_ALLOW_OCTAL | FILTER_FLAG_ALLOW_HEX)
+                ?? filter_var($replaced, FILTER_VALIDATE_FLOAT, FILTER_NULL_ON_FAILURE)
+                ?? $replaced,
+        };
     }
 
     private function replaceEnvVariablesRecursive(mixed $value): mixed {
