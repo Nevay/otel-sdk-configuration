@@ -30,6 +30,7 @@ final class ConfigurationFactoryTest extends TestCase {
                     $node
                         ->children()
                             ->scalarNode('string_key')->end()
+                            ->scalarNode('env_string_key')->end()
                             ->scalarNode('other_string_key')->end()
                             ->scalarNode('another_string_key')->end()
                             ->scalarNode('string_key_with_quoted_hex_value')->end()
@@ -63,6 +64,7 @@ final class ConfigurationFactoryTest extends TestCase {
         $parsed = $factory->process([
             Yaml::parse(<<<'YAML'
                 string_key: ${STRING_VALUE}                           # Valid reference to STRING_VALUE
+                env_string_key: ${env:STRING_VALUE}                   # Valid reference to STRING_VALUE
                 other_string_key: "${STRING_VALUE}"                   # Valid reference to STRING_VALUE inside double quotes
                 another_string_key: "${BOOl_VALUE}"                   # Valid reference to BOOl_VALUE inside double quotes
                 string_key_with_quoted_hex_value: "${HEX_VALUE}"      # Valid reference to HEX_VALUE inside double quotes
@@ -81,6 +83,7 @@ final class ConfigurationFactoryTest extends TestCase {
         $this->assertSame(
             Yaml::parse(<<<'YAML'
                 string_key: value                              # Interpreted as type string, tag URI tag:yaml.org,2002:str
+                env_string_key: value                          # Interpreted as type string, tag URI tag:yaml.org,2002:str
                 other_string_key: "value"                      # Interpreted as type string, tag URI tag:yaml.org,2002:str
                 another_string_key: "true"                     # Interpreted as type string, tag URI tag:yaml.org,2002:str
                 string_key_with_quoted_hex_value: "0xdeadbeef" # Interpreted as type string, tag URI tag:yaml.org,2002:str
