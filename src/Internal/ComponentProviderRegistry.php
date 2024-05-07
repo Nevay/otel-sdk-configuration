@@ -6,8 +6,8 @@ use LogicException;
 use Nevay\OTelSDK\Configuration\ComponentProvider;
 use Nevay\OTelSDK\Configuration\ResourceCollection;
 use Nevay\OTelSDK\Configuration\Validation;
-use ReflectionClass;
 use ReflectionIntersectionType;
+use ReflectionMethod;
 use ReflectionNamedType;
 use ReflectionType;
 use ReflectionUnionType;
@@ -31,10 +31,9 @@ final class ComponentProviderRegistry implements \Nevay\OTelSDK\Configuration\Co
     /** @var iterable<Normalization> */
     private readonly iterable $normalizations;
 
-    /** @var array<string, array<string, ComponentProvider>> */
+    /** @var array<string, array<string, ComponentProviderRegistryEntry>> */
     private array $providers = [];
-    /** @var array<string, array<string, NodeInterface>> */
-    private array $nodes = [];
+
     private ?ResourceCollection $resources = null;
 
     /**
@@ -53,12 +52,7 @@ final class ComponentProviderRegistry implements \Nevay\OTelSDK\Configuration\Co
             throw new LogicException(sprintf('Duplicate component provider registered for "%s" "%s"', $type, $name));
         }
 
-        foreach ($this->normalizations as $normalization) {
-            $normalization->apply($config);
-        }
-
-        $this->providers[$type][$name] = $provider;
-        $this->nodes[$type][$name] = $config->getNode(forceRootNode: true);
+        $this->providers[$type][$name] = new ComponentProviderRegistryEntry($provider, $config);
     }
 
     public function trackResources(?ResourceCollection $resources): void {
@@ -81,36 +75,15 @@ final class ComponentProviderRegistry implements \Nevay\OTelSDK\Configuration\Co
 
     public function componentNames(string $name, string $type): ArrayNodeDefinition {
         $node = new ArrayNodeDefinition($name);
-
-        $providers = $this->providers[$type];
-        foreach ($this->nodes[$type] as $providerName => $configNode) {
-            try {
-                $configNode->finalize([]);
-            } catch (InvalidConfigurationException) {
-                unset($providers[$providerName]);
+        $node->scalarPrototype()->validate()->always(Validation::ensureString())->end()->end();
+        $node->validate()->always(function(array $value) use ($type): array {
+            $plugins = [];
+            foreach ($value as $name) {
+                $plugins[] = $this->process($type, $name, []);
             }
-        }
-        if ($providers) {
-            $node->scalarPrototype()->validate()->always(Validation::ensureString())->end()->end();
-            $node->validate()->always(function(array $value) use ($type): array {
-                $plugins = [];
-                foreach ($value as $name) {
-                    if (!isset($this->providers[$type][$name])) {
-                        throw new InvalidArgumentException(sprintf('Unknown provider "%s" for "%s"',
-                            $name, $type));
-                    }
-                    $provider = $this->providers[$type][$name];
-                    $this->resources?->addClassResource($provider);
 
-                    $plugins[] = new ComponentPlugin(
-                        (new Processor())->process($this->nodes[$type][$name], []),
-                        $this->providers[$type][$name],
-                    );
-                }
-
-                return $plugins;
-            });
-        }
+            return $plugins;
+        });
 
         return $node;
     }
@@ -119,22 +92,38 @@ final class ComponentProviderRegistry implements \Nevay\OTelSDK\Configuration\Co
         $node->info(sprintf('Component "%s"', $type));
         $node->performNoDeepMerging();
         $node->ignoreExtraKeys(false);
-
         $node->validate()->always(function(array $value) use ($type): ComponentPlugin {
             if (count($value) !== 1) {
-                throw new InvalidArgumentException(sprintf('Component "%s" must have exactly one element defined, got %s',
+                throw new InvalidArgumentException(sprintf('Component "%s" must have exactly one provider defined, got %s',
                     $type, implode(', ', array_map(json_encode(...), array_keys($value)) ?: ['none'])));
             }
 
-            $name = array_key_first($value);
-            $provider = $this->providers[$type][$name];
-            $this->resources?->addClassResource($provider);
-
-            return new ComponentPlugin(
-                (new Processor())->process($this->nodes[$type][$name], $value),
-                $this->providers[$type][$name],
-            );
+            return $this->process($type, array_key_first($value), $value);
         });
+    }
+
+    private function process(string $type, string $name, mixed $configs): ComponentPlugin {
+        if (!$provider = $this->providers[$type][$name] ?? null) {
+            throw new InvalidArgumentException(sprintf('Component "%s" uses unknown provider "%s", available providers are %s',
+                $type, $name, implode(', ', array_map(json_encode(...), array_keys($this->providers[$type])) ?: ['none'])));
+        }
+
+        if (!$provider->node instanceof NodeInterface) {
+            foreach ($this->normalizations as $normalization) {
+                $normalization->apply($provider->node);
+            }
+            $provider->node = $provider->node->getNode(forceRootNode: true);
+        }
+
+        try {
+            $componentConfig = (new Processor())->process($provider->node, $configs);
+        } catch (InvalidConfigurationException $e) {
+            throw new InvalidArgumentException($e->getMessage(), $e->getCode(), $e);
+        }
+
+        $this->resources?->addClassResource($provider);
+
+        return new ComponentPlugin($componentConfig, $provider->componentProvider);
     }
 
     private static function loadName(NodeDefinition $node): string {
@@ -146,7 +135,7 @@ final class ComponentProviderRegistry implements \Nevay\OTelSDK\Configuration\Co
 
     private static function loadType(ComponentProvider $provider): string {
         /** @noinspection PhpUnhandledExceptionInspection */
-        if ($returnType = (new ReflectionClass($provider))->getMethod('createPlugin')->getReturnType()) {
+        if ($returnType = (new ReflectionMethod($provider, 'createPlugin'))->getReturnType()) {
             return self::typeToString($returnType);
         }
 
