@@ -22,6 +22,7 @@ use Symfony\Component\Config\ResourceCheckerConfigCache;
 use Symfony\Component\VarExporter\VarExporter;
 use Throwable;
 use function class_exists;
+use function getcwd;
 use function is_file;
 use function serialize;
 use function sprintf;
@@ -89,8 +90,13 @@ final class ConfigurationFactory {
             $resources->addClassResource(VarExporter::class);
         }
 
+        $paths = [];
+        if (($cwd = getcwd()) !== false) {
+            $paths[] = $cwd;
+        }
+
         $loader = new ConfigurationLoader($resources);
-        $locator = new FileLocator();
+        $locator = new FileLocator($paths);
         $fileLoader = new DelegatingLoader(new LoaderResolver([
             new YamlSymfonyFileLoader($loader, $locator),
             new YamlExtensionFileLoader($loader, $locator),
