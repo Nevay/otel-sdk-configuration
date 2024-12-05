@@ -16,11 +16,11 @@ use const PATHINFO_EXTENSION;
 
 final class YamlSymfonyFileLoader extends FileLoader {
 
-    public function __construct(private readonly ConfigurationLoader $configuration, FileLocatorInterface $locator, string $env = null) {
+    public function __construct(private readonly ConfigurationLoader $configuration, FileLocatorInterface $locator, ?string $env = null) {
         parent::__construct($locator, $env);
     }
 
-    public function load(mixed $resource, string $type = null): mixed {
+    public function load(mixed $resource, ?string $type = null): mixed {
         assert(class_exists(Yaml::class));
 
         $path = $this->locator->locate($resource);
@@ -37,7 +37,7 @@ final class YamlSymfonyFileLoader extends FileLoader {
         return null;
     }
 
-    public function supports(mixed $resource, string $type = null): bool {
+    public function supports(mixed $resource, ?string $type = null): bool {
         return class_exists(Yaml::class)
             && is_string($resource)
             && match ($type ?? pathinfo($resource, PATHINFO_EXTENSION)) {

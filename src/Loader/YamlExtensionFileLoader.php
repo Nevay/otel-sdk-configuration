@@ -14,11 +14,11 @@ use const PATHINFO_EXTENSION;
 
 final class YamlExtensionFileLoader extends FileLoader {
 
-    public function __construct(private readonly ConfigurationLoader $configuration, FileLocatorInterface $locator, string $env = null) {
+    public function __construct(private readonly ConfigurationLoader $configuration, FileLocatorInterface $locator, ?string $env = null) {
         parent::__construct($locator, $env);
     }
 
-    public function load(mixed $resource, string $type = null): mixed {
+    public function load(mixed $resource, ?string $type = null): mixed {
         assert(extension_loaded('yaml'));
 
         $path = $this->locator->locate($resource);
@@ -33,7 +33,7 @@ final class YamlExtensionFileLoader extends FileLoader {
         return null;
     }
 
-    public function supports(mixed $resource, string $type = null): bool {
+    public function supports(mixed $resource, ?string $type = null): bool {
         return extension_loaded('yaml')
             && is_string($resource)
             && match ($type ?? pathinfo($resource, PATHINFO_EXTENSION)) {
