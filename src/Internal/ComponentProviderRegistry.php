@@ -105,7 +105,7 @@ final class ComponentProviderRegistry implements \Nevay\OTelSDK\Configuration\Co
     private function process(string $type, string $name, mixed $configs): ComponentPlugin {
         if (!$provider = $this->providers[$type][$name] ?? null) {
             throw new InvalidArgumentException(sprintf('Component "%s" uses unknown provider "%s", available providers are %s',
-                $type, $name, implode(', ', array_map(json_encode(...), array_keys($this->providers[$type])) ?: ['none'])));
+                $type, $name, implode(', ', array_map(json_encode(...), array_keys($this->providers[$type] ?? [])) ?: ['none'])));
         }
 
         if (!$provider->node instanceof NodeInterface) {
