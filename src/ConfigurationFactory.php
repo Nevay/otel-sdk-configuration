@@ -10,7 +10,6 @@ use Nevay\OTelSDK\Configuration\Internal\ConfigurationLoader;
 use Nevay\OTelSDK\Configuration\Internal\EnvSubstitutionNormalization;
 use Nevay\OTelSDK\Configuration\Internal\ResourceCollection;
 use Nevay\OTelSDK\Configuration\Internal\TrackingEnvReader;
-use Nevay\OTelSDK\Configuration\Internal\TreatNullAsUnsetNormalization;
 use Nevay\OTelSDK\Configuration\Loader\YamlExtensionFileLoader;
 use Nevay\OTelSDK\Configuration\Loader\YamlSymfonyFileLoader;
 use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
@@ -124,8 +123,6 @@ final class ConfigurationFactory {
         $normalizations = [
             // Parse MUST perform environment variable substitution.
             new EnvSubstitutionNormalization($envReader),
-            // Parse MUST interpret null as equivalent to unset.
-            new TreatNullAsUnsetNormalization(),
         ];
 
         $registry = new ComponentProviderRegistry($normalizations);
