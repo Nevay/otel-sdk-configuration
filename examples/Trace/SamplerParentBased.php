@@ -8,6 +8,7 @@ use Nevay\OTelSDK\Configuration\ComponentProvider;
 use Nevay\OTelSDK\Configuration\ComponentProviderRegistry;
 use Nevay\OTelSDK\Configuration\Context;
 use Symfony\Component\Config\Definition\Builder\ArrayNodeDefinition;
+use Symfony\Component\Config\Definition\Builder\NodeBuilder;
 
 final class SamplerParentBased implements ComponentProvider {
 
@@ -25,8 +26,8 @@ final class SamplerParentBased implements ComponentProvider {
     }
 
 
-    public function getConfig(ComponentProviderRegistry $registry): ArrayNodeDefinition {
-        $node = new ArrayNodeDefinition('parent_based');
+    public function getConfig(ComponentProviderRegistry $registry, NodeBuilder $builder): ArrayNodeDefinition {
+        $node = $builder->arrayNode('parent_based');
         $node
             ->children()
                 ->append($registry->component('root', Sampler::class)->isRequired())

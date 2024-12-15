@@ -15,6 +15,7 @@ use Nevay\OTelSDK\Configuration\Context;
 use Nevay\OTelSDK\Configuration\Validation;
 use OpenTelemetry\Context\Propagation\TextMapPropagatorInterface;
 use Symfony\Component\Config\Definition\Builder\ArrayNodeDefinition;
+use Symfony\Component\Config\Definition\Builder\NodeBuilder;
 
 final class OpenTelemetryConfiguration implements ComponentProvider {
 
@@ -75,8 +76,8 @@ final class OpenTelemetryConfiguration implements ComponentProvider {
         throw new BadMethodCallException('not implemented');
     }
 
-    public function getConfig(ComponentProviderRegistry $registry): ArrayNodeDefinition {
-        $node = new ArrayNodeDefinition('open_telemetry');
+    public function getConfig(ComponentProviderRegistry $registry, NodeBuilder $builder): ArrayNodeDefinition {
+        $node = $builder->arrayNode('open_telemetry');
         $node
             ->addDefaultsIfNotSet()
             ->ignoreExtraKeys()
@@ -88,19 +89,19 @@ final class OpenTelemetryConfiguration implements ComponentProvider {
                     ->validate()->ifNotInArray(['0.1'])->thenInvalid('unsupported version')->end()
                 ->end()
                 ->booleanNode('disabled')->defaultFalse()->end()
-                ->append($this->getResourceConfig())
-                ->append($this->getAttributeLimitsConfig())
+                ->append($this->getResourceConfig($builder))
+                ->append($this->getAttributeLimitsConfig($builder))
                 ->append($registry->component('propagator', TextMapPropagatorInterface::class))
-                ->append($this->getTracerProviderConfig($registry))
-                ->append($this->getMeterProviderConfig($registry))
-                ->append($this->getLoggerProviderConfig($registry))
+                ->append($this->getTracerProviderConfig($registry, $builder))
+                ->append($this->getMeterProviderConfig($registry, $builder))
+                ->append($this->getLoggerProviderConfig($registry, $builder))
             ->end();
 
         return $node;
     }
 
-    private function getResourceConfig(): ArrayNodeDefinition {
-        $node = new ArrayNodeDefinition('resource');
+    private function getResourceConfig(NodeBuilder $builder): ArrayNodeDefinition {
+        $node = $builder->arrayNode('resource');
         $node
             ->addDefaultsIfNotSet()
             ->children()
@@ -113,8 +114,8 @@ final class OpenTelemetryConfiguration implements ComponentProvider {
         return $node;
     }
 
-    private function getAttributeLimitsConfig(): ArrayNodeDefinition {
-        $node = new ArrayNodeDefinition('attribute_limits');
+    private function getAttributeLimitsConfig(NodeBuilder $builder): ArrayNodeDefinition {
+        $node = $builder->arrayNode('attribute_limits');
         $node
             ->addDefaultsIfNotSet()
             ->children()
@@ -125,8 +126,8 @@ final class OpenTelemetryConfiguration implements ComponentProvider {
         return $node;
     }
 
-    private function getTracerProviderConfig(ComponentProviderRegistry $registry): ArrayNodeDefinition {
-        $node = new ArrayNodeDefinition('tracer_provider');
+    private function getTracerProviderConfig(ComponentProviderRegistry $registry, NodeBuilder $builder): ArrayNodeDefinition {
+        $node = $builder->arrayNode('tracer_provider');
         $node
             ->addDefaultsIfNotSet()
             ->children()
@@ -149,8 +150,8 @@ final class OpenTelemetryConfiguration implements ComponentProvider {
         return $node;
     }
 
-    private function getMeterProviderConfig(ComponentProviderRegistry $registry): ArrayNodeDefinition {
-        $node = new ArrayNodeDefinition('meter_provider');
+    private function getMeterProviderConfig(ComponentProviderRegistry $registry, NodeBuilder $builder): ArrayNodeDefinition {
+        $node = $builder->arrayNode('meter_provider');
         $node
             ->addDefaultsIfNotSet()
             ->children()
@@ -200,8 +201,8 @@ final class OpenTelemetryConfiguration implements ComponentProvider {
         return $node;
     }
 
-    private function getLoggerProviderConfig(ComponentProviderRegistry $registry): ArrayNodeDefinition {
-        $node = new ArrayNodeDefinition('logger_provider');
+    private function getLoggerProviderConfig(ComponentProviderRegistry $registry, NodeBuilder $builder): ArrayNodeDefinition {
+        $node = $builder->arrayNode('logger_provider');
         $node
             ->addDefaultsIfNotSet()
             ->children()

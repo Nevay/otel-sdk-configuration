@@ -7,11 +7,19 @@ use Nevay\OTelSDK\Configuration\Environment\EnvResourceChecker;
 use Nevay\OTelSDK\Configuration\Internal\CompiledConfigurationFactory;
 use Nevay\OTelSDK\Configuration\Internal\ComponentProviderRegistry;
 use Nevay\OTelSDK\Configuration\Internal\ConfigurationLoader;
+use Nevay\OTelSDK\Configuration\Internal\NodeDefinition\ArrayNodeDefinition;
+use Nevay\OTelSDK\Configuration\Internal\NodeDefinition\BooleanNodeDefinition;
+use Nevay\OTelSDK\Configuration\Internal\NodeDefinition\FloatNodeDefinition;
+use Nevay\OTelSDK\Configuration\Internal\NodeDefinition\IntegerNodeDefinition;
+use Nevay\OTelSDK\Configuration\Internal\NodeDefinition\ScalarNodeDefinition;
+use Nevay\OTelSDK\Configuration\Internal\NodeDefinition\StringNodeDefinition;
+use Nevay\OTelSDK\Configuration\Internal\NodeDefinition\VariableNodeDefinition;
 use Nevay\OTelSDK\Configuration\Internal\EnvSubstitutionNormalization;
 use Nevay\OTelSDK\Configuration\Internal\ResourceCollection;
 use Nevay\OTelSDK\Configuration\Internal\TrackingEnvReader;
 use Nevay\OTelSDK\Configuration\Loader\YamlExtensionFileLoader;
 use Nevay\OTelSDK\Configuration\Loader\YamlSymfonyFileLoader;
+use Symfony\Component\Config\Definition\Builder\NodeBuilder;
 use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
 use Symfony\Component\Config\FileLocator;
 use Symfony\Component\Config\Loader\DelegatingLoader;
@@ -65,7 +73,7 @@ final class ConfigurationFactory {
      * @throws InvalidConfigurationException if the configuration is invalid
      * @throws Throwable if a cache file is given and a non-serializable component provider is used
      *
-     * @see https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/configuration/file-configuration.md#parse
+     * @see https://opentelemetry.io/docs/specs/otel/configuration/sdk/#parse
      */
     public function parseFile(
         string|array $file,
@@ -125,12 +133,21 @@ final class ConfigurationFactory {
             new EnvSubstitutionNormalization($envReader),
         ];
 
-        $registry = new ComponentProviderRegistry($normalizations);
+        $builder = new NodeBuilder();
+        $builder->setNodeClass('variable', VariableNodeDefinition::class);
+        $builder->setNodeClass('scalar', ScalarNodeDefinition::class);
+        $builder->setNodeClass('boolean', BooleanNodeDefinition::class);
+        $builder->setNodeClass('integer', IntegerNodeDefinition::class);
+        $builder->setNodeClass('float', FloatNodeDefinition::class);
+        $builder->setNodeClass('array', ArrayNodeDefinition::class);
+        $builder->setNodeClass('string', StringNodeDefinition::class);
+
+        $registry = new ComponentProviderRegistry($normalizations, $builder);
         foreach ($this->componentProviders as $provider) {
             $registry->register($provider);
         }
 
-        $root = $this->rootComponent->getConfig($registry);
+        $root = $this->rootComponent->getConfig($registry, $builder);
         foreach ($normalizations as $normalization) {
             $normalization->apply($root);
         }

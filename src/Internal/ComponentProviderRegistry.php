@@ -12,6 +12,7 @@ use ReflectionNamedType;
 use ReflectionType;
 use ReflectionUnionType;
 use Symfony\Component\Config\Definition\Builder\ArrayNodeDefinition;
+use Symfony\Component\Config\Definition\Builder\NodeBuilder;
 use Symfony\Component\Config\Definition\Builder\NodeDefinition;
 use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
 use Symfony\Component\Config\Definition\NodeInterface;
@@ -30,6 +31,7 @@ final class ComponentProviderRegistry implements \Nevay\OTelSDK\Configuration\Co
 
     /** @var iterable<Normalization> */
     private readonly iterable $normalizations;
+    private readonly NodeBuilder $builder;
 
     /** @var array<string, array<string, ComponentProviderRegistryEntry>> */
     private array $providers = [];
@@ -39,12 +41,13 @@ final class ComponentProviderRegistry implements \Nevay\OTelSDK\Configuration\Co
     /**
      * @param iterable<Normalization> $normalizations
      */
-    public function __construct(iterable $normalizations) {
+    public function __construct(iterable $normalizations, NodeBuilder $builder) {
         $this->normalizations = $normalizations;
+        $this->builder = $builder;
     }
 
     public function register(ComponentProvider $provider): void {
-        $config = $provider->getConfig($this);
+        $config = $provider->getConfig($this, $this->builder);
 
         $name = self::loadName($config);
         $type = self::loadType($provider);
@@ -60,21 +63,22 @@ final class ComponentProviderRegistry implements \Nevay\OTelSDK\Configuration\Co
     }
 
     public function component(string $name, string $type): NodeDefinition {
-        $node = new ArrayNodeDefaultNullDefinition($name);
+        $node = $this->builder->arrayNode($name);
+        $node->defaultNull();
         $this->applyToArrayNode($node, $type);
 
         return $node;
     }
 
     public function componentList(string $name, string $type): ArrayNodeDefinition {
-        $node = new ArrayNodeDefinition($name);
+        $node = $this->builder->arrayNode($name);
         $this->applyToArrayNode($node->arrayPrototype(), $type);
 
         return $node;
     }
 
     public function componentNames(string $name, string $type): ArrayNodeDefinition {
-        $node = new ArrayNodeDefinition($name);
+        $node = $this->builder->arrayNode($name);
         $node->scalarPrototype()->validate()->always(Validation::ensureString())->end()->end();
         $node->validate()->always(function(array $value) use ($type): array {
             $plugins = [];

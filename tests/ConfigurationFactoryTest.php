@@ -11,6 +11,7 @@ use PHPUnit\Framework\Attributes\BackupGlobals;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Config\Definition\Builder\ArrayNodeDefinition;
+use Symfony\Component\Config\Definition\Builder\NodeBuilder;
 use Symfony\Component\Yaml\Yaml;
 
 final class ConfigurationFactoryTest extends TestCase {
@@ -25,7 +26,7 @@ final class ConfigurationFactoryTest extends TestCase {
                     throw new BadMethodCallException();
                 }
 
-                public function getConfig(ComponentProviderRegistry $registry): ArrayNodeDefinition {
+                public function getConfig(ComponentProviderRegistry $registry, NodeBuilder $builder): ArrayNodeDefinition {
                     $node = new ArrayNodeDefinition('env_substitution');
                     $node
                         ->children()
@@ -94,8 +95,7 @@ final class ConfigurationFactoryTest extends TestCase {
                 float_key: 1.1                                 # Interpreted as type float, tag URI tag:yaml.org,2002:float
                 combo_string_key: foo value 1.1                # Interpreted as type string, tag URI tag:yaml.org,2002:str
                 string_key_with_default: fallback              # Interpreted as type string, tag URI tag:yaml.org,2002:str
-                # undefined_key removed as null is treated as unset
-                # undefined_key:                               # Interpreted as type null, tag URI tag:yaml.org,2002:null
+                undefined_key:                                 # Interpreted as type null, tag URI tag:yaml.org,2002:null
                 ${STRING_VALUE}: value                         # Interpreted as type string, tag URI tag:yaml.org,2002:str
                 YAML),
             self::getPropertiesFromPlugin($parsed),

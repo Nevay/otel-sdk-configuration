@@ -7,6 +7,7 @@ use Nevay\OTelSDK\Configuration\ComponentProvider;
 use Nevay\OTelSDK\Configuration\ComponentProviderRegistry;
 use Nevay\OTelSDK\Configuration\Context;
 use Symfony\Component\Config\Definition\Builder\ArrayNodeDefinition;
+use Symfony\Component\Config\Definition\Builder\NodeBuilder;
 
 final class SamplerTraceIdRatioBased implements ComponentProvider {
 
@@ -19,8 +20,8 @@ final class SamplerTraceIdRatioBased implements ComponentProvider {
         throw new BadMethodCallException('not implemented');
     }
 
-    public function getConfig(ComponentProviderRegistry $registry): ArrayNodeDefinition {
-        $node = new ArrayNodeDefinition('trace_id_ratio_based');
+    public function getConfig(ComponentProviderRegistry $registry, NodeBuilder $builder): ArrayNodeDefinition {
+        $node = $builder->arrayNode('trace_id_ratio_based');
         $node
             ->children()
                 ->floatNode('ratio')->min(0)->max(1)->isRequired()->end()
