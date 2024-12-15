@@ -35,39 +35,4 @@ final class PrototypedArrayNode extends \Symfony\Component\Config\Definition\Pro
     public function setAllowEmptyValue(bool $boolean): void {
         $this->allowEmptyValue = $boolean;
     }
-
-    protected function normalizeValue(mixed $value): mixed {
-        if ($value === null) {
-            return null;
-        }
-
-        return parent::normalizeValue($value);
-    }
-
-    protected function mergeValues(mixed $leftSide, mixed $rightSide): mixed {
-        if (null === $rightSide) {
-            return $leftSide;
-        }
-        if (null === $leftSide) {
-            return $rightSide;
-        }
-
-        return parent::mergeValues($leftSide, $rightSide);
-    }
-
-    public function finalizeValue(mixed $value): mixed {
-        if ($value === null) {
-            return null;
-        }
-
-        return parent::finalizeValue($value);
-    }
-
-    protected function validateType(mixed $value): void {
-        if ($value === null && $this->allowEmptyValue) {
-            return;
-        }
-
-        parent::validateType($value);
-    }
 }
