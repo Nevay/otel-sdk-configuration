@@ -77,12 +77,29 @@ final class ComponentProviderRegistry implements \Nevay\OTelSDK\Configuration\Co
         return $node;
     }
 
+    public function componentMap(string $name, string $type): ArrayNodeDefinition {
+        $node = $this->builder->arrayNode($name);
+        $node->info(sprintf('Component "%s"', $type));
+        $node->performNoDeepMerging();
+        $node->ignoreExtraKeys(false);
+        $node->validate()->always(function(?array $value) use ($type): array {
+            $plugins = [];
+            foreach ($value ?? [] as $name => $config) {
+                $plugins[] = $this->process($type, $name, [$config]);
+            }
+
+            return $plugins;
+        });
+
+        return $node;
+    }
+
     public function componentNames(string $name, string $type): ArrayNodeDefinition {
         $node = $this->builder->arrayNode($name);
         $node->scalarPrototype()->validate()->always(Validation::ensureString())->end()->end();
-        $node->validate()->always(function(array $value) use ($type): array {
+        $node->validate()->always(function(?array $value) use ($type): array {
             $plugins = [];
-            foreach ($value as $name) {
+            foreach ($value ?? [] as $name) {
                 $plugins[] = $this->process($type, $name, []);
             }
 
@@ -96,10 +113,10 @@ final class ComponentProviderRegistry implements \Nevay\OTelSDK\Configuration\Co
         $node->info(sprintf('Component "%s"', $type));
         $node->performNoDeepMerging();
         $node->ignoreExtraKeys(false);
-        $node->validate()->always(function(array $value) use ($type): ComponentPlugin {
-            if (count($value) !== 1) {
+        $node->validate()->always(function(?array $value) use ($type): ComponentPlugin {
+            if (!$value || count($value) !== 1) {
                 throw new InvalidArgumentException(sprintf('Component "%s" must have exactly one provider defined, got %s',
-                    $type, implode(', ', array_map(json_encode(...), array_keys($value)) ?: ['none'])));
+                    $type, implode(', ', array_map(json_encode(...), array_keys($value ?? [])) ?: ['none'])));
             }
 
             return $this->process($type, array_key_first($value), $value);

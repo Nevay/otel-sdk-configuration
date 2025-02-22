@@ -47,6 +47,26 @@ interface ComponentProviderRegistry {
     public function componentList(string $name, string $type): ArrayNodeDefinition;
 
     /**
+     * Creates a node to specify a map of component plugin.
+     *
+     * `$name: list<ComponentPlugin<$type>>`
+     *
+     * ```
+     * $name:
+     *   provider1:
+     *      property: value
+     *      anotherProperty: value
+     *   provider2:
+     *      property: value
+     *      anotherProperty: value
+     * ```
+     *
+     * @param string $name name of configuration node
+     * @param string $type type of the component plugin
+     */
+    public function componentMap(string $name, string $type): ArrayNodeDefinition;
+
+    /**
      * Creates a node to specify a list of component plugin names.
      *
      * The providers cannot have required properties.
