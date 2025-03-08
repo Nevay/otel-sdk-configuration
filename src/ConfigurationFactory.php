@@ -4,6 +4,8 @@ namespace Nevay\OTelSDK\Configuration;
 use Exception;
 use Nevay\OTelSDK\Configuration\Environment\EnvReader;
 use Nevay\OTelSDK\Configuration\Environment\EnvResourceChecker;
+use Nevay\OTelSDK\Configuration\Internal\ArgumentResource;
+use Nevay\OTelSDK\Configuration\Internal\ArgumentResourceChecker;
 use Nevay\OTelSDK\Configuration\Internal\CompiledConfigurationFactory;
 use Nevay\OTelSDK\Configuration\Internal\ComponentProviderRegistry;
 use Nevay\OTelSDK\Configuration\Internal\ConfigurationLoader;
@@ -85,6 +87,7 @@ final class ConfigurationFactory {
         if ($cacheFile !== null) {
             $cache = new ResourceCheckerConfigCache($cacheFile, [
                 new SelfCheckingResourceChecker(),
+                new ArgumentResourceChecker($file),
                 new EnvResourceChecker($this->envReader),
             ]);
             if (is_file($cache->getPath())
@@ -93,6 +96,7 @@ final class ConfigurationFactory {
                 return $configuration;
             }
             $resources = new ResourceCollection();
+            $resources->addResource(new ArgumentResource($file));
             $resources->addClassResource(ComponentPlugin::class);
             $resources->addClassResource(VarExporter::class);
         }
