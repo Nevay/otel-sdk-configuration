@@ -22,6 +22,7 @@ use Nevay\OTelSDK\Configuration\Internal\TrackingEnvReader;
 use Nevay\OTelSDK\Configuration\Loader\YamlExtensionFileLoader;
 use Nevay\OTelSDK\Configuration\Loader\YamlSymfonyFileLoader;
 use Symfony\Component\Config\Definition\Builder\NodeBuilder;
+use Symfony\Component\Config\Definition\Builder\NodeDefinition;
 use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
 use Symfony\Component\Config\FileLocator;
 use Symfony\Component\Config\Loader\DelegatingLoader;
@@ -137,7 +138,11 @@ final class ConfigurationFactory {
             new EnvSubstitutionNormalization($envReader),
         ];
 
-        $builder = new NodeBuilder();
+        $builder = new class extends NodeBuilder {
+            public function node(?string $name, string $type): NodeDefinition {
+                return parent::node($name, $type)->setPathSeparator("\0.");
+            }
+        };
         $builder->setNodeClass('variable', VariableNodeDefinition::class);
         $builder->setNodeClass('scalar', ScalarNodeDefinition::class);
         $builder->setNodeClass('boolean', BooleanNodeDefinition::class);
