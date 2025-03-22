@@ -14,7 +14,7 @@ final class ArrayNode extends \Symfony\Component\Config\Definition\ArrayNode {
     private bool $allowEmptyValue = true;
 
     public static function fromNode(\Symfony\Component\Config\Definition\ArrayNode $node): ArrayNode {
-        $_node = new self($node->getName());
+        $_node = new self($node->name, $node->parent, $node->pathSeparator);
         foreach (get_object_vars($node) as $property => $value) {
             $_node->$property = $value;
         }

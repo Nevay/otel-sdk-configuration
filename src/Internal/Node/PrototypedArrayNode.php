@@ -9,7 +9,7 @@ final class PrototypedArrayNode extends \Symfony\Component\Config\Definition\Pro
     private bool $allowEmptyValue = true;
 
     public static function fromNode(\Symfony\Component\Config\Definition\PrototypedArrayNode $node): PrototypedArrayNode {
-        $_node = new self($node->getName());
+        $_node = new self($node->name, $node->parent, $node->pathSeparator);
         foreach (get_object_vars($node) as $property => $value) {
             $_node->$property = $value;
         }
