@@ -13,7 +13,6 @@ use Symfony\Component\Config\Definition\Builder\VariableNodeDefinition;
 use function filter_var;
 use function is_array;
 use function is_string;
-use function preg_replace_callback;
 use const FILTER_FLAG_ALLOW_HEX;
 use const FILTER_FLAG_ALLOW_OCTAL;
 use const FILTER_NULL_ON_FAILURE;
@@ -25,7 +24,7 @@ use const NAN;
 /**
  * @internal
  */
-final class EnvSubstitutionNormalization implements Normalization {
+final class SubstitutionNormalization implements Normalization {
 
     public function __construct(
         private readonly EnvReader $envReader,
@@ -61,15 +60,9 @@ final class EnvSubstitutionNormalization implements Normalization {
     }
 
     private function replaceEnvVariables(string $value, bool $resolveScalars = false): mixed {
-        $replaced = preg_replace_callback(
-            '/\$\{(?:env:)?(?<ENV_NAME>[a-zA-Z_][a-zA-Z0-9_]*)(?::-(?<DEFAULT_VALUE>[^\n]*))?}/',
-            fn(array $matches): string => $this->envReader->read($matches['ENV_NAME']) ?? $matches['DEFAULT_VALUE'] ?? '',
-            $value,
-            -1,
-            $count,
-        );
+        $replaced = Substitution::process($value, $this->envReader);
 
-        if (!$count) {
+        if ($value === $replaced) {
             return $value;
         }
         if ($replaced === '') {

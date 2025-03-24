@@ -16,7 +16,7 @@ use Nevay\OTelSDK\Configuration\Internal\NodeDefinition\IntegerNodeDefinition;
 use Nevay\OTelSDK\Configuration\Internal\NodeDefinition\ScalarNodeDefinition;
 use Nevay\OTelSDK\Configuration\Internal\NodeDefinition\StringNodeDefinition;
 use Nevay\OTelSDK\Configuration\Internal\NodeDefinition\VariableNodeDefinition;
-use Nevay\OTelSDK\Configuration\Internal\EnvSubstitutionNormalization;
+use Nevay\OTelSDK\Configuration\Internal\SubstitutionNormalization;
 use Nevay\OTelSDK\Configuration\Internal\ResourceCollection;
 use Nevay\OTelSDK\Configuration\Internal\TrackingEnvReader;
 use Nevay\OTelSDK\Configuration\Loader\YamlExtensionFileLoader;
@@ -135,7 +135,7 @@ final class ConfigurationFactory {
         $envReader = new TrackingEnvReader($this->envReader);
         $normalizations = [
             // Parse MUST perform environment variable substitution.
-            new EnvSubstitutionNormalization($envReader),
+            new SubstitutionNormalization($envReader),
         ];
 
         $builder = new class extends NodeBuilder {
