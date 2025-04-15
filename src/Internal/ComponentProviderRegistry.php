@@ -130,10 +130,11 @@ final class ComponentProviderRegistry implements \Nevay\OTelSDK\Configuration\Co
         }
 
         if (!$provider->node instanceof NodeInterface) {
-            foreach ($this->normalizations as $normalization) {
-                $normalization->apply($provider->node);
-            }
             $provider->node = $provider->node->getNode(forceRootNode: true);
+
+            if ($provider->node instanceof NormalizationsAware) {
+                $provider->node->setNormalizations($this->normalizations);
+            }
         }
 
         try {

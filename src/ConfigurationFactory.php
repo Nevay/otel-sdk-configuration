@@ -11,11 +11,13 @@ use Nevay\OTelSDK\Configuration\Internal\ComponentProviderRegistry;
 use Nevay\OTelSDK\Configuration\Internal\ConfigurationLoader;
 use Nevay\OTelSDK\Configuration\Internal\NodeDefinition\ArrayNodeDefinition;
 use Nevay\OTelSDK\Configuration\Internal\NodeDefinition\BooleanNodeDefinition;
+use Nevay\OTelSDK\Configuration\Internal\NodeDefinition\EnumNodeDefinition;
 use Nevay\OTelSDK\Configuration\Internal\NodeDefinition\FloatNodeDefinition;
 use Nevay\OTelSDK\Configuration\Internal\NodeDefinition\IntegerNodeDefinition;
 use Nevay\OTelSDK\Configuration\Internal\NodeDefinition\ScalarNodeDefinition;
 use Nevay\OTelSDK\Configuration\Internal\NodeDefinition\StringNodeDefinition;
 use Nevay\OTelSDK\Configuration\Internal\NodeDefinition\VariableNodeDefinition;
+use Nevay\OTelSDK\Configuration\Internal\NormalizationsAware;
 use Nevay\OTelSDK\Configuration\Internal\SubstitutionNormalization;
 use Nevay\OTelSDK\Configuration\Internal\ResourceCollection;
 use Nevay\OTelSDK\Configuration\Internal\TrackingEnvReader;
@@ -149,6 +151,7 @@ final class ConfigurationFactory {
         $builder->setNodeClass('integer', IntegerNodeDefinition::class);
         $builder->setNodeClass('float', FloatNodeDefinition::class);
         $builder->setNodeClass('array', ArrayNodeDefinition::class);
+        $builder->setNodeClass('enum', EnumNodeDefinition::class);
         $builder->setNodeClass('string', StringNodeDefinition::class);
 
         $registry = new ComponentProviderRegistry($normalizations, $builder);
@@ -156,12 +159,13 @@ final class ConfigurationFactory {
             $registry->register($provider);
         }
 
-        $root = $this->rootComponent->getConfig($registry, $builder);
-        foreach ($normalizations as $normalization) {
-            $normalization->apply($root);
-        }
+        $node = $this->rootComponent
+            ->getConfig($registry, $builder)
+            ->getNode(forceRootNode: true);
 
-        $node = $root->getNode(forceRootNode: true);
+        if ($node instanceof NormalizationsAware) {
+            $node->setNormalizations($normalizations);
+        }
 
         return new CompiledConfigurationFactory(
             $this->rootComponent,

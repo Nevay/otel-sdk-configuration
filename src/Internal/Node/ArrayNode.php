@@ -1,13 +1,18 @@
 <?php declare(strict_types=1);
 namespace Nevay\OTelSDK\Configuration\Internal\Node;
 
+use Nevay\OTelSDK\Configuration\Internal\Normalization;
+use Nevay\OTelSDK\Configuration\Internal\NormalizationsAware;
 use function get_object_vars;
 
 /**
  * @internal
  */
-final class ArrayNode extends \Symfony\Component\Config\Definition\ArrayNode {
+final class ArrayNode extends \Symfony\Component\Config\Definition\ArrayNode implements NormalizationsAware {
     use NodeTrait;
+
+    /** @var list<Normalization> */
+    private array $normalizations = [];
 
     private bool $defaultValueSet = false;
     private mixed $defaultValue = null;
@@ -20,6 +25,22 @@ final class ArrayNode extends \Symfony\Component\Config\Definition\ArrayNode {
         }
 
         return $_node;
+    }
+
+    public function setNormalizations(array $normalizations): void {
+        $this->normalizations = $normalizations;
+    }
+
+    protected function preNormalize(mixed $value): mixed {
+        if ($value === null && $this->allowEmptyValue && $this->hasDefaultValue()) {
+            $value = $this->getDefaultValue();
+        }
+
+        foreach ($this->normalizations as $normalization) {
+            $value = $normalization->applyToNode($this, $value);
+        }
+
+        return parent::preNormalize($value);
     }
 
     public function setDefaultValue(mixed $value): void {

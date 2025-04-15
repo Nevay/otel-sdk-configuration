@@ -2,14 +2,14 @@
 namespace Nevay\OTelSDK\Configuration\Internal;
 
 use Nevay\OTelSDK\Configuration\Environment\EnvReader;
-use Symfony\Component\Config\Definition\Builder\ArrayNodeDefinition;
-use Symfony\Component\Config\Definition\Builder\BooleanNodeDefinition;
-use Symfony\Component\Config\Definition\Builder\FloatNodeDefinition;
-use Symfony\Component\Config\Definition\Builder\IntegerNodeDefinition;
-use Symfony\Component\Config\Definition\Builder\NodeDefinition;
-use Symfony\Component\Config\Definition\Builder\ParentNodeDefinitionInterface;
-use Symfony\Component\Config\Definition\Builder\ScalarNodeDefinition;
-use Symfony\Component\Config\Definition\Builder\VariableNodeDefinition;
+use Nevay\OTelSDK\Configuration\Internal\Node\BooleanNode;
+use Nevay\OTelSDK\Configuration\Internal\Node\FloatNode;
+use Nevay\OTelSDK\Configuration\Internal\Node\IntegerNode;
+use Nevay\OTelSDK\Configuration\Internal\Node\PrototypedArrayNode;
+use Nevay\OTelSDK\Configuration\Internal\Node\VariableNode;
+use Symfony\Component\Config\Definition\ArrayNode;
+use Symfony\Component\Config\Definition\NodeInterface;
+use Symfony\Component\Config\Definition\ScalarNode;
 use function filter_var;
 use function is_array;
 use function is_string;
@@ -30,33 +30,46 @@ final class SubstitutionNormalization implements Normalization {
         private readonly EnvReader $envReader,
     ) {}
 
-    public function apply(ArrayNodeDefinition $root): void {
-        foreach ($root->getChildNodeDefinitions() as $childNode) {
-            $this->doApply($childNode);
-        }
-    }
+    public function applyToNode(NodeInterface $node, mixed $value): mixed {
+        if ($node instanceof PrototypedArrayNode && is_array($value)) {
+            foreach ($value as $k => $v) {
+                if (($r = $this->applyToNode($node->getPrototype(), $v)) !== $v) {
+                    $value[$k] = $r;
+                }
+            }
 
-    private function doApply(NodeDefinition $node): void {
-        if ($node instanceof ScalarNodeDefinition) {
+            return $value;
+        }
+        if ($node instanceof ArrayNode && is_array($value)) {
+            foreach ($value as $k => $v) {
+                if (!$child = $node->getChildren()[$k] ?? null) {
+                    continue;
+                }
+
+                if (($r = $this->applyToNode($child, $v)) !== $v) {
+                    $value[$k] = $r;
+                }
+            }
+
+            return $value;
+        }
+        if ($node instanceof ScalarNode && is_string($value)) {
             $resolveScalars = match (true) {
-                $node instanceof BooleanNodeDefinition,
-                $node instanceof IntegerNodeDefinition,
-                $node instanceof FloatNodeDefinition,
+                $node instanceof BooleanNode,
+                $node instanceof IntegerNode,
+                $node instanceof FloatNode,
                     => true,
                 default
                     => false,
             };
-            $node->beforeNormalization()->ifString()->then(fn(string $v) => $this->replaceEnvVariables($v, $resolveScalars))->end();
+
+            return $this->replaceEnvVariables($value, $resolveScalars);
         }
-        if ($node instanceof VariableNodeDefinition) {
-            $node->beforeNormalization()->always($this->replaceEnvVariablesRecursive(...))->end();
+        if ($node instanceof VariableNode) {
+            return $this->replaceEnvVariablesRecursive($value);
         }
 
-        if ($node instanceof ParentNodeDefinitionInterface) {
-            foreach ($node->getChildNodeDefinitions() as $childNode) {
-                $this->doApply($childNode);
-            }
-        }
+        return $value;
     }
 
     private function replaceEnvVariables(string $value, bool $resolveScalars = false): mixed {

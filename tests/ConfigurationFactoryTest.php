@@ -27,7 +27,7 @@ final class ConfigurationFactoryTest extends TestCase {
                 }
 
                 public function getConfig(ComponentProviderRegistry $registry, NodeBuilder $builder): ArrayNodeDefinition {
-                    $node = new ArrayNodeDefinition('env_substitution');
+                    $node = $builder->arrayNode('env_substitution');
                     $node
                         ->children()
                             ->scalarNode('string_key')->end()
@@ -53,7 +53,7 @@ final class ConfigurationFactoryTest extends TestCase {
             new EnvSourceReader([
                 new ArrayEnvSource([
                     'STRING_VALUE' => 'value',
-                    'BOOl_VALUE' => 'true',
+                    'BOOL_VALUE' => 'true',
                     'INT_VALUE' => '1',
                     'FLOAT_VALUE' => '1.1',
                     'HEX_VALUE' => '0xdeadbeef',
@@ -67,10 +67,10 @@ final class ConfigurationFactoryTest extends TestCase {
                 string_key: ${STRING_VALUE}                           # Valid reference to STRING_VALUE
                 env_string_key: ${env:STRING_VALUE}                   # Valid reference to STRING_VALUE
                 other_string_key: "${STRING_VALUE}"                   # Valid reference to STRING_VALUE inside double quotes
-                another_string_key: "${BOOl_VALUE}"                   # Valid reference to BOOl_VALUE inside double quotes
+                another_string_key: "${BOOL_VALUE}"                   # Valid reference to BOOL_VALUE inside double quotes
                 string_key_with_quoted_hex_value: "${HEX_VALUE}"      # Valid reference to HEX_VALUE inside double quotes
                 yet_another_string_key: ${INVALID_MAP_VALUE}          # Valid reference to INVALID_MAP_VALUE, but YAML structure from INVALID_MAP_VALUE MUST NOT be injected
-                bool_key: ${BOOl_VALUE}                               # Valid reference to BOOl_VALUE
+                bool_key: ${BOOL_VALUE}                               # Valid reference to BOOL_VALUE
                 int_key: ${INT_VALUE}                                 # Valid reference to INT_VALUE
                 int_key_with_unquoted_hex_value: ${HEX_VALUE}         # Valid reference to HEX_VALUE without quotes
                 float_key: ${FLOAT_VALUE}                             # Valid reference to FLOAT_VALUE
